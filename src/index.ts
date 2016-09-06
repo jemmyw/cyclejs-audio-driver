@@ -3,50 +3,10 @@ import XStreamAdapter from "@cycle/xstream-adapter";
 import xs, {Stream, Listener} from 'xstream';
 import fromEvent from 'xstream/extra/fromEvent';
 import {always, assoc, fromPairs, prop, map} from 'ramda'
-
-interface AudioCommand {
-  id:number
-  cmd:string
-  data?:boolean|number
-}
-
-interface AudioEvent extends Event {
-  id:number
-}
-
-interface AudioEventStream extends Stream<AudioEvent>, AudioAction {
-  id:number
-}
-
-interface KeyValuePair<K, V> extends Array<K | V> { 0 : K; 1 : V; }
-
-interface AudioState {
-  id:number
-  currentTime:number
-  duration:number
-  ended:boolean
-  loop:boolean
-  muted:boolean
-  paused:boolean
-  playbackRate:number
-  played:boolean
-  preload:string
-  readyState:number
-  seekable:boolean
-  seeking:boolean
-  src:string
-  volume:number
-}
-
-interface AudioAction {
-  setCurrentTime:(v:number) => void
-  setLoop:(v:boolean) => void
-  setMuted:(v:boolean) => void
-  setPlaybackRate:(v:number) => void
-  setVolume:(v:number) => void
-  pause:() => void
-  play:() => void
-}
+import {
+  AudioAction, KeyValuePair, AudioEventStream, AudioState, AudioCommand,
+  AudioStreamFactory
+} from './interfaces'
 
 const STATE_PROPERTIES:string[] = [
   'currentTime',
@@ -127,7 +87,6 @@ class Sound implements AudioAction {
 
   unload() {
     this._audio.src = ''
-    delete this._audio
   }
 }
 
@@ -214,7 +173,7 @@ class AudioCmdListener implements Listener<AudioCommand> {
   }
 }
 
-class AudioSource {
+class AudioSource implements AudioStreamFactory {
   private manager:SoundManager
   private runSA:StreamAdapter
 
@@ -230,7 +189,7 @@ class AudioSource {
   }
 }
 
-function audioDriver(sink$: Stream<AudioCommand>, runSA:StreamAdapter):AudioSource {
+export function audioDriver(sink$: Stream<AudioCommand>, runSA:StreamAdapter):AudioStreamFactory {
   const manager = new SoundManager()
   const cmdListener = new AudioCmdListener(manager)
   sink$.addListener(cmdListener)
@@ -238,8 +197,6 @@ function audioDriver(sink$: Stream<AudioCommand>, runSA:StreamAdapter):AudioSour
   return new AudioSource(manager, runSA)
 }
 
-function makeAudioDriver():Function {
+export function makeAudioDriver() {
   return audioDriver
 }
-
-export {makeAudioDriver}

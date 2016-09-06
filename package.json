@@ -3,14 +3,15 @@
   "version": "0.0.0",
   "description": "HTML5 audio driver for CycleJS",
   "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
   "scripts": {
     "build": "tsc",
     "dist": "browserify -o dist/cyclejs-audio-driver.js lib/index.js",
-    "example": "browserify -o example/bundle.js lib/example.js -t babelify"
-    "preversion": "npm run build && npm run dist && npm add lib dist"
+    "example": "browserify -o example/bundle.js lib/example.js -t babelify",
+    "preversion": "npm run build && npm run dist && git add lib dist"
   },
   "author": "Jeremy Wells",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "@cycle/xstream-adapter": "^3.0.3",
     "ramda": "^0.22.1"

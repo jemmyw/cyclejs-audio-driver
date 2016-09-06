@@ -87,7 +87,6 @@
         Sound.prototype.play = function () { return this._audio.play(); };
         Sound.prototype.unload = function () {
             this._audio.src = '';
-            delete this._audio;
         };
         return Sound;
     }());
@@ -175,6 +174,7 @@
         sink$.addListener(cmdListener);
         return new AudioSource(manager, runSA);
     }
+    exports.audioDriver = audioDriver;
     function makeAudioDriver() {
         return audioDriver;
     }
