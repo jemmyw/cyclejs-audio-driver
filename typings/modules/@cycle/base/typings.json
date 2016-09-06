@@ -1,0 +1,11 @@
+{
+  "resolution": "main",
+  "tree": {
+    "src": "/Users/jeremy/src/bigears/cyclejs-audio-driver/node_modules/@cycle/base/typings.json",
+    "raw": "npm:@cycle/base",
+    "main": "lib/index.d.ts",
+    "version": "4.1.1",
+    "global": false,
+    "name": "@cycle/base"
+  }
+}
