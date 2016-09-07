@@ -156,7 +156,7 @@ function audioStream(sound) {
     return stream$;
 }
 function commandAppliesToAction(manager, cmd) {
-    if (cmd.id) {
+    if (typeof cmd.id === 'number') {
         return manager.get(cmd.id);
     }
     return manager;
