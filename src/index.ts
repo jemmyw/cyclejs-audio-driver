@@ -177,11 +177,7 @@ class AudioCmdListener implements Listener<AudioCommand> {
     const fn = commandFunction(action, cmd)
     if (!fn) { return }
 
-    if (cmd.data) {
-      fn.call(action, cmd.data)
-    } else {
-      fn.call(action)
-    }
+    fn.call(action, cmd.data)
   }
 
   complete() {
