@@ -154,6 +154,15 @@ function audioStream(sound:Sound) {
   return stream$
 }
 
+function commandAppliesToAction(manager:SoundManager, cmd:AudioCommand):AudioAction {
+  if (cmd.id) { return manager.get(cmd.id) }
+  return manager
+}
+
+function commandFunction(action:AudioAction, cmd:AudioCommand) {
+  return (action as any)[cmd.cmd] as Function
+}
+
 class AudioCmdListener implements Listener<AudioCommand> {
   private manager:SoundManager
 
@@ -162,18 +171,10 @@ class AudioCmdListener implements Listener<AudioCommand> {
   }
 
   next(cmd:AudioCommand) {
-    const extractAction = R.compose(
-      R.ifElse(Boolean,
-        R.bind(this.manager, this.manager.get),
-        R.always(this.manager)
-      ),
-      R.prop('id')
-    )
-
-    const action:AudioAction = extractAction(cmd)
+    const action:AudioAction = commandAppliesToAction(this.manager, cmd)
     if (!action) { return }
 
-    const fn = (action as any)[cmd.cmd] as Function
+    const fn = commandFunction(action, cmd)
     if (!fn) { return }
 
     if (cmd.data) {
