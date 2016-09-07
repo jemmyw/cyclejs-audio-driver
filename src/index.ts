@@ -90,7 +90,7 @@ class Sound implements AudioAction {
   }
 }
 
-class SoundManager {
+class SoundManager implements AudioAction {
   private sounds:Sound[]
 
   constructor() {
@@ -121,6 +121,14 @@ class SoundManager {
 
     this.sounds = []
   }
+
+  setCurrentTime(v:number) { for(let sound of this.sounds) { sound.setCurrentTime(v) }}
+  setLoop(v:boolean) { for(let sound of this.sounds) { sound.setLoop(v) }}
+  setMuted(v:boolean) { for(let sound of this.sounds) { sound.setMuted(v) }}
+  setPlaybackRate(v:number) { for (let sound of this.sounds) { sound.setPlaybackRate(v) }}
+  setVolume(v:number) { for (let sound of this.sounds) { sound.setVolume(v) }}
+  pause() { for (let sound of this.sounds) { sound.pause() }}
+  play() { for (let sound of this.sounds) { sound.play() }}
 }
 
 function createAudio() {
@@ -154,13 +162,20 @@ class AudioCmdListener implements Listener<AudioCommand> {
   }
 
   next(cmd:AudioCommand) {
-    const sound:any = this.manager.get(cmd.id)
-    const fn = sound[cmd.cmd] as Function
+    let action:AudioAction
+
+    if (cmd.id) {
+      action = this.manager.get(cmd.id)
+    } else {
+      action = this.manager
+    }
+
+    const fn = (action as any)[cmd.cmd] as Function
 
     if (cmd.data) {
-      fn.call(sound, cmd.data)
+      fn.call(action, cmd.data)
     } else {
-      fn.call(sound)
+      fn.call(action)
     }
   }
 
@@ -197,6 +212,8 @@ export function audioDriver(sink$: Stream<AudioCommand>, runSA:StreamAdapter):Au
   return new AudioSource(manager, runSA)
 }
 
-export function makeAudioDriver() {
+function makeAudioDriver() {
   return audioDriver
 }
+
+export {makeAudioDriver}

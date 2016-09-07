@@ -1,7 +1,7 @@
 import {Stream} from 'xstream'
 
 export interface AudioCommand {
-  id:number
+  id?:number
   cmd:string
   data?:boolean|number
 }
