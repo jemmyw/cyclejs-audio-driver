@@ -155,7 +155,7 @@ function audioStream(sound:Sound) {
 }
 
 function commandAppliesToAction(manager:SoundManager, cmd:AudioCommand):AudioAction {
-  if (cmd.id) { return manager.get(cmd.id) }
+  if (typeof cmd.id === 'number') { return manager.get(cmd.id) }
   return manager
 }
 
