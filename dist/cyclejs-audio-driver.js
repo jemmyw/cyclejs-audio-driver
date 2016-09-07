@@ -177,12 +177,7 @@ var AudioCmdListener = (function () {
         if (!fn) {
             return;
         }
-        if (cmd.data) {
-            fn.call(action, cmd.data);
-        }
-        else {
-            fn.call(action);
-        }
+        fn.call(action, cmd.data);
     };
     AudioCmdListener.prototype.complete = function () {
         this.manager.unload();
