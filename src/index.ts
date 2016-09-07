@@ -2,7 +2,7 @@ import {StreamAdapter} from '@cycle/base';
 import XStreamAdapter from "@cycle/xstream-adapter";
 import xs, {Stream, Listener} from 'xstream';
 import fromEvent from 'xstream/extra/fromEvent';
-import {always, assoc, fromPairs, prop, map} from 'ramda'
+import * as R from 'ramda'
 import {
   AudioAction, KeyValuePair, AudioEventStream, AudioState, AudioCommand,
   AudioStreamFactory
@@ -67,9 +67,9 @@ class Sound implements AudioAction {
 
   state():AudioState {
     const audio = this._audio
-    const state = fromPairs<any>(
-      map<string, KeyValuePair<string, any>>(property =>
-        [property, prop(property, audio)],
+    const state = R.fromPairs<any>(
+      R.map<string, KeyValuePair<string, any>>(property =>
+        [property, R.prop(property, audio)],
         STATE_PROPERTIES
       )
     ) as AudioState
@@ -139,12 +139,12 @@ function audioStream(sound:Sound) {
   const id = sound.id
 
   const stream$ = xs.merge(...EVENTS.map(event => fromEvent(sound.audio, event)))
-    .map(assoc('id', id))
-    .map(evt => assoc('state', sound.state(), evt)) as AudioEventStream
+    .map(R.assoc('id', id))
+    .map(evt => R.assoc('state', sound.state(), evt)) as AudioEventStream
 
   stream$.id = id
-  stream$.play = always({id, cmd: 'play'})
-  stream$.pause = always({id, cmd: 'pause'})
+  stream$.play = R.always({id, cmd: 'play'})
+  stream$.pause = R.always({id, cmd: 'pause'})
   stream$.setCurrentTime = data => ({id, cmd:'setCurrentTime', data})
   stream$.setLoop = data => ({id, cmd:'setLoop', data})
   stream$.setMuted = data => ({id, cmd:'setMuted', data})
@@ -162,15 +162,19 @@ class AudioCmdListener implements Listener<AudioCommand> {
   }
 
   next(cmd:AudioCommand) {
-    let action:AudioAction
+    const extractAction = R.compose(
+      R.ifElse(Boolean,
+        R.bind(this.manager, this.manager.get),
+        R.always(this.manager)
+      ),
+      R.prop('id')
+    )
 
-    if (cmd.id) {
-      action = this.manager.get(cmd.id)
-    } else {
-      action = this.manager
-    }
+    const action:AudioAction = extractAction(cmd)
+    if (!action) { return }
 
     const fn = (action as any)[cmd.cmd] as Function
+    if (!fn) { return }
 
     if (cmd.data) {
       fn.call(action, cmd.data)
