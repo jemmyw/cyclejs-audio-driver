@@ -7,7 +7,7 @@
     "outDir": "./lib",
     "moduleResolution": "node",
     "target": "es5",
-    "module": "umd",
+    "module": "commonjs",
     "strictNullChecks": true,
     "lib": [
       "es6",
