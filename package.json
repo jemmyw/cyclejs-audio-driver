@@ -29,6 +29,6 @@
     "xstream": "^6.2.0"
   },
   "peerDependencies": {
-    "xstream": ">5"
+    "xstream": ">=5"
   }
 }
