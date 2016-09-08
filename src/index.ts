@@ -5,7 +5,7 @@ import fromEvent from 'xstream/extra/fromEvent';
 import * as R from 'ramda'
 import {
   AudioAction, KeyValuePair, AudioEventStream, AudioState, AudioCommand,
-  AudioStreamFactory
+  AudioStreamFactory, AudioEvent
 } from './interfaces'
 
 const STATE_PROPERTIES:string[] = [
@@ -87,31 +87,36 @@ class Sound implements AudioAction {
 
   unload() {
     this._audio.src = ''
+    this._audio = null as any
   }
 }
 
 class SoundManager implements AudioAction {
-  private sounds:Sound[]
+  private _sounds:Array<Sound | null>
+
+  get sounds():Sound[] {
+    return this._sounds.filter(Boolean) as Sound[]
+  }
 
   constructor() {
-    this.sounds = []
+    this._sounds = []
   }
 
   add(src:string):Sound {
-    const id = this.sounds.length
+    const id = this._sounds.length
     const sound = new Sound(id, src)
-    this.sounds[id] = sound
+    this._sounds[id] = sound
     return sound
   }
 
   del(id:number):void {
-    const sound = this.sounds[id]
-    sound.unload()
-    delete this.sounds[id]
+    const sound = this._sounds[id]
+    if (sound) { sound.unload() }
+    this._sounds[id] = null
   }
 
   get(id:number):Sound {
-    return this.sounds[id]
+    return this._sounds[id] as Sound
   }
 
   unload():void {
@@ -119,7 +124,7 @@ class SoundManager implements AudioAction {
       sound.unload()
     }
 
-    this.sounds = []
+    this._sounds = []
   }
 
   setCurrentTime(v:number) { for(let sound of this.sounds) { sound.setCurrentTime(v) }}
@@ -138,20 +143,9 @@ function createAudio() {
 function audioStream(sound:Sound) {
   const id = sound.id
 
-  const stream$ = xs.merge(...EVENTS.map(event => fromEvent(sound.audio, event)))
+  return xs.merge(...EVENTS.map(event => fromEvent(sound.audio, event)))
     .map(R.assoc('id', id))
     .map(evt => R.assoc('state', sound.state(), evt)) as AudioEventStream
-
-  stream$.id = id
-  stream$.play = R.always({id, cmd: 'play'})
-  stream$.pause = R.always({id, cmd: 'pause'})
-  stream$.setCurrentTime = data => ({id, cmd:'setCurrentTime', data})
-  stream$.setLoop = data => ({id, cmd:'setLoop', data})
-  stream$.setMuted = data => ({id, cmd:'setMuted', data})
-  stream$.setPlaybackRate = data => ({id, cmd:'setPlaybackRate', data})
-  stream$.setVolume = data => ({id, cmd:'setVolume', data})
-
-  return stream$
 }
 
 function commandAppliesToAction(manager:SoundManager, cmd:AudioCommand):AudioAction {
@@ -199,9 +193,35 @@ class AudioSource implements AudioStreamFactory {
   }
 
   sound(src:string) {
-    const sound = this.manager.add(src)
-    const stream = audioStream(sound)
-    return this.runSA.adapt(stream, XStreamAdapter.streamSubscribe)
+    const manager = this.manager
+    const sound = manager.add(src)
+    const id = sound.id
+    const innerStream = audioStream(sound)
+
+    const producer = {
+      start: function(l:Listener<AudioEvent>) {
+        this.l = l
+        innerStream.addListener(l)
+      },
+      stop: function() {
+        innerStream.removeListener(this.l)
+        manager.del(sound.id)
+      }
+    }
+
+    const stream = xs.create(producer)
+    const adaptedStream = this.runSA.adapt(stream, XStreamAdapter.streamSubscribe) as AudioEventStream
+
+    adaptedStream.id = id
+    adaptedStream.play = R.always({id, cmd: 'play'})
+    adaptedStream.pause = R.always({id, cmd: 'pause'})
+    adaptedStream.setCurrentTime = data => ({id, cmd:'setCurrentTime', data})
+    adaptedStream.setLoop = data => ({id, cmd:'setLoop', data})
+    adaptedStream.setMuted = data => ({id, cmd:'setMuted', data})
+    adaptedStream.setPlaybackRate = data => ({id, cmd:'setPlaybackRate', data})
+    adaptedStream.setVolume = data => ({id, cmd:'setVolume', data})
+
+    return adaptedStream
   }
 }
 
