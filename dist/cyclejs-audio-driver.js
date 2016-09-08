@@ -79,33 +79,43 @@ var Sound = (function () {
     Sound.prototype.play = function () { return this._audio.play(); };
     Sound.prototype.unload = function () {
         this._audio.src = '';
+        this._audio = null;
     };
     return Sound;
 }());
 var SoundManager = (function () {
     function SoundManager() {
-        this.sounds = [];
+        this._sounds = [];
     }
+    Object.defineProperty(SoundManager.prototype, "sounds", {
+        get: function () {
+            return this._sounds.filter(Boolean);
+        },
+        enumerable: true,
+        configurable: true
+    });
     SoundManager.prototype.add = function (src) {
-        var id = this.sounds.length;
+        var id = this._sounds.length;
         var sound = new Sound(id, src);
-        this.sounds[id] = sound;
+        this._sounds[id] = sound;
         return sound;
     };
     SoundManager.prototype.del = function (id) {
-        var sound = this.sounds[id];
-        sound.unload();
-        delete this.sounds[id];
+        var sound = this._sounds[id];
+        if (sound) {
+            sound.unload();
+        }
+        this._sounds[id] = null;
     };
     SoundManager.prototype.get = function (id) {
-        return this.sounds[id];
+        return this._sounds[id];
     };
     SoundManager.prototype.unload = function () {
         for (var _i = 0, _a = this.sounds; _i < _a.length; _i++) {
             var sound = _a[_i];
             sound.unload();
         }
-        this.sounds = [];
+        this._sounds = [];
     };
     SoundManager.prototype.setCurrentTime = function (v) { for (var _i = 0, _a = this.sounds; _i < _a.length; _i++) {
         var sound = _a[_i];
@@ -142,18 +152,9 @@ function createAudio() {
 }
 function audioStream(sound) {
     var id = sound.id;
-    var stream$ = xstream_1.default.merge.apply(xstream_1.default, EVENTS.map(function (event) { return fromEvent_1.default(sound.audio, event); }))
+    return xstream_1.default.merge.apply(xstream_1.default, EVENTS.map(function (event) { return fromEvent_1.default(sound.audio, event); }))
         .map(R.assoc('id', id))
         .map(function (evt) { return R.assoc('state', sound.state(), evt); });
-    stream$.id = id;
-    stream$.play = R.always({ id: id, cmd: 'play' });
-    stream$.pause = R.always({ id: id, cmd: 'pause' });
-    stream$.setCurrentTime = function (data) { return ({ id: id, cmd: 'setCurrentTime', data: data }); };
-    stream$.setLoop = function (data) { return ({ id: id, cmd: 'setLoop', data: data }); };
-    stream$.setMuted = function (data) { return ({ id: id, cmd: 'setMuted', data: data }); };
-    stream$.setPlaybackRate = function (data) { return ({ id: id, cmd: 'setPlaybackRate', data: data }); };
-    stream$.setVolume = function (data) { return ({ id: id, cmd: 'setVolume', data: data }); };
-    return stream$;
 }
 function commandAppliesToAction(manager, cmd) {
     if (typeof cmd.id === 'number') {
@@ -192,9 +193,31 @@ var AudioSource = (function () {
         this.runSA = runSA;
     }
     AudioSource.prototype.sound = function (src) {
-        var sound = this.manager.add(src);
-        var stream = audioStream(sound);
-        return this.runSA.adapt(stream, xstream_adapter_1.default.streamSubscribe);
+        var manager = this.manager;
+        var sound = manager.add(src);
+        var id = sound.id;
+        var innerStream = audioStream(sound);
+        var producer = {
+            start: function (l) {
+                this.l = l;
+                innerStream.addListener(l);
+            },
+            stop: function () {
+                innerStream.removeListener(this.l);
+                manager.del(sound.id);
+            }
+        };
+        var stream = xstream_1.default.create(producer);
+        var adaptedStream = this.runSA.adapt(stream, xstream_adapter_1.default.streamSubscribe);
+        adaptedStream.id = id;
+        adaptedStream.play = R.always({ id: id, cmd: 'play' });
+        adaptedStream.pause = R.always({ id: id, cmd: 'pause' });
+        adaptedStream.setCurrentTime = function (data) { return ({ id: id, cmd: 'setCurrentTime', data: data }); };
+        adaptedStream.setLoop = function (data) { return ({ id: id, cmd: 'setLoop', data: data }); };
+        adaptedStream.setMuted = function (data) { return ({ id: id, cmd: 'setMuted', data: data }); };
+        adaptedStream.setPlaybackRate = function (data) { return ({ id: id, cmd: 'setPlaybackRate', data: data }); };
+        adaptedStream.setVolume = function (data) { return ({ id: id, cmd: 'setVolume', data: data }); };
+        return adaptedStream;
     };
     return AudioSource;
 }());
